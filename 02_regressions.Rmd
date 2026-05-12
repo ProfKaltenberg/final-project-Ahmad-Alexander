@@ -1,0 +1,192 @@
+---
+title: "Regressions"
+output: html_document
+date: "2026-04-28"
+---
+
+## Installing packages and setting working directory
+
+```{r setup}
+library(tidyverse)
+library(ggplot2)
+library(plm)
+library(fixest)
+library(dplyr)
+library(modelsummary)
+library(tinytable)
+library(stargazer)
+library(margins)
+
+gtfs <- read_csv("/Users/ahmadalexander/Desktop/python/eco590/final-project-Ahmad-Alexander/data/bus_bunching.csv")
+```
+
+## Cleaning data
+
+```{r cars}
+# Making categorical variables
+gtfs <- gtfs %>%
+  mutate(
+    agency = factor(agency, levels = c("MBTA", "MTA", "WMATA")),
+    direction = factor(direction),
+    route_id = factor(route_id),
+    day_of_week = factor(
+      day_of_week,
+      levels = c("0", "1", "2", "3", "4", "5", "6"),
+      labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    ),
+    day_of_week = relevel(day_of_week, ref = "Friday")
+  )
+```
+
+## Summary Stats
+
+```{r stats}
+outpath <-setwd("/Users/ahmadalexander/Desktop/python/eco590/final-project-Ahmad-Alexander/output")
+
+# Getting summary stats
+summary_vars <- subset(gtfs, select = c(deviation, bunching, scheduled_headway, peak,
+                                         n_stops, timepoint_rate, route_length_mi, headway_cv))
+
+stargazer(
+  as.data.frame(summary_vars),
+  type = "html",
+  title = "Table 1: Summary Statistics",
+  covariate.labels = c(
+    "Headway Deviation",
+    "Bunching",
+    "Scheduled Headway",
+    "Peak Hour",
+    "Number of Stops",
+    "Timepoint Rate",
+    "Route Length",
+    "Headway CV"
+  ),
+  summary.stat = c("mean", "sd", "min", "max", "n"),
+  digits = 2,
+  out = paste0(outpath, "summary_stats.html")
+)
+
+browseURL("summary_stats.html")
+```
+
+## Regressions
+
+```{r regressions}
+# Model 1: Pooled OLS, no fixed effects
+model1 <- plm(
+  deviation ~ agency + scheduled_headway + peak + direction +
+    n_stops + timepoint_rate + route_length_mi + headway_cv,
+  data = gtfs,
+  model = "pooling"
+)
+summary(model1)
+
+# Model 2: Pooled OLS, day fixed effects
+model2 <- plm(
+  deviation ~ agency + scheduled_headway + peak + direction +
+    n_stops + timepoint_rate + route_length_mi + headway_cv +
+    day_of_week,
+  data = gtfs,
+  model = "pooling"
+)
+summary(model2)
+
+# Model 3: Route fixed effects
+model3 <- plm(
+  deviation ~ scheduled_headway + peak + direction,
+  data = gtfs,
+  model = "within",
+  effect = "individual"
+)
+summary(model3)
+
+# Model 4: Two-way fixed effects (route + day)
+model4 <- plm(
+  deviation ~ scheduled_headway + peak + direction,
+  data = gtfs,
+  model = "within",
+  effect = "twoways"
+)
+summary(model4)
+
+# Output Table
+stargazer(model1, model2, model3, model4,
+          type = "html",
+          out = "table2_ols.html",
+          title = "Table 2: Deviation (Minutes)",
+          column.labels = c("OLS", "Day FE", "Rote FE", "Two-Way FE"),
+          covariate.labels = c("Agency: MTA", "Agency: WMATA",
+                               "Scheduled Headway", "Peak Hour",
+                               "Direction (Inbound)", "N Stops",
+                               "Timepoint Rate", "Route Length (mi)",
+                               "Headway CV"),
+          add.lines = list(
+            c("Day Fixed Effects", "No", "Yes", "No", "Yes"),
+            c("Route Fixed Effects", "No", "No", "Yes", "Yes")
+          ),
+          omit = "day_of_week",
+          omit.stat = c("f", "ser"),
+          digits = 4,
+          notes = "Heteroskedasticity-robust standard errors in parentheses.",
+          notes.append = TRUE)
+
+```
+
+```{r regressions 2}
+# Model 5: Agency x headway interaction, day FE
+model5 <- plm(
+  deviation ~ agency + scheduled_headway + agency:scheduled_headway +
+    peak + direction + n_stops + timepoint_rate + route_length_mi + headway_cv +
+    day_of_week,
+  data = gtfs,
+  model = "pooling"
+)
+summary(model5)
+
+# Model 6: Logistic regression with bunching as outcome
+model6 <- glm(
+  bunching ~ agency + scheduled_headway + peak + direction +
+    n_stops + timepoint_rate + route_length_mi + headway_cv,
+  data = gtfs,
+  family = "binomial"
+)
+
+summary(model6)
+
+marginal_effects <- margins(model6) # getting the marginl effects
+summary(marginal_effects)
+plot(marginal_effects) # plotting the avg. marginal effects
+
+cplot(model6, "scheduled_headway",
+      what = "prediction",
+      main = "Predicted Probability of Bunching by Scheduled Headway",
+      xlab = "Scheduled Headway (minutes)",
+      ylab = "Predicted Probability of Bunching")
+
+
+stargazer(model5, model6,
+          type = "html",
+          out = "table3_extensions.html",
+          title = "Table 3: Agency Comparison and Logistic Models",
+          column.labels = c("Model 5 (OLS)", "Model 6 (Logit)"),
+          model.names = FALSE,
+          covariate.labels = c("Agency: MTA", "Agency: WMATA",
+                               "Scheduled Headway", "Peak Hour",
+                               "Direction (Inbound)", "N Stops",
+                               "Timepoint Rate", "Route Length (mi)",
+                               "Headway CV",
+                               "MTA x Headway",
+                               "WMATA x Headway"),
+          add.lines = list(
+            c("Day Fixed Effects", "Yes", "No"),
+            c("Route Fixed Effects", "No", "No")
+          ),
+          omit = "day_of_week",
+          omit.stat = c("f", "ser"),
+          digits = 3,
+          notes = "Heteroskedasticity-robust standard errors in parentheses. Model 6 reports log-odds coefficients.",
+          notes.append = TRUE)
+
+saveRDS(gtfs, "/Users/ahmadalexander/Desktop/python/eco590/final-project-Ahmad-Alexander/data/bus_bunching.rds")
+cat("saved\n")
+```
