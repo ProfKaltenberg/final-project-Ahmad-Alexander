@@ -1,0 +1,172 @@
+---
+title: "Regressions"
+output: html_document
+date: "2026-04-28"
+---
+
+## Installing packages and setting working directory
+
+```{r setup}
+library(tidyverse)
+library(ggplot2)
+library(lmtest)
+library(plm)
+library(fixest)
+library(dplyr)
+library(modelsummary)
+library(tinytable)
+library(stargazer)
+library(margins)
+library(sandwich)
+
+gtfs <- read_csv('/Users/ahmadalexander/Desktop/python/eco590/final-project-Ahmad-Alexander/data/bus_bunching.csv')
+```
+
+## Cleaning data
+
+```{r cars}
+# Making categorical variables
+gtfs <- gtfs %>%
+  mutate(
+    agency = factor(agency, levels = c("MBTA", "MTA", "WMATA")),
+    direction = factor(direction),
+    route_id = factor(route_id),
+    day_of_week = factor(
+      day_of_week,
+      levels = c("0", "1", "2", "3", "4", "5", "6"),
+      labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    ),
+    day_of_week = relevel(day_of_week, ref = "Friday")
+  )
+```
+
+## Summary Stats
+
+```{r stats}
+# Getting summary stats
+summary_vars <- subset(gtfs, select = c(scheduled_headway, deviation, peak, bunching, timepoint_rate, headway_cv))
+
+stargazer(
+  as.data.frame(summary_vars),
+  type = "html",
+  title = "Table 1: Summary Statistics",
+  covariate.labels = c(
+    "Scheduled Headway","Headway Deviation","Peak Hour", "Bunching", "Timepoint Rate", "Headway CV"
+  ),
+  summary.stat = c("mean", "sd", "min", "max", "n"),
+  digits = 2,
+  out = ( "summary_stats.html")
+)
+
+browseURL("summary_stats.html")
+```
+
+## Regressions
+
+```{r regressions}
+# model 1: pooled OLS, agency as covariate
+model1 <- lm(
+  deviation ~ agency + scheduled_headway + peak + timepoint_rate + headway_cv, 
+  data = gtfs
+)
+se1 <- sqrt(diag(vcovCL(model1, cluster = ~route_id))) #clustered SEs at route level
+summary(model1)
+
+# model 2: route FE via dummy variables
+model2 <- lm(
+  deviation ~ scheduled_headway + peak + timepoint_rate + headway_cv + route_id, 
+  data = gtfs
+)
+se2 <- sqrt(diag(vcovCL(model2, cluster = ~route_id))) #clustered SEs at route level
+summary(model2)
+
+# model 3: route + day of week FE
+model3 <- lm(
+  deviation ~ scheduled_headway + peak + timepoint_rate + headway_cv + route_id + day_of_week, 
+  data = gtfs
+)
+se3 <- sqrt(diag(vcovCL(model3, cluster = ~route_id))) #clustered SEs at route level
+summary(model3)
+
+# model 4: agency x headway interaction
+model4 <- lm(
+  deviation ~ agency + scheduled_headway + agency:scheduled_headway + 
+    peak + timepoint_rate + headway_cv + day_of_week,
+  data = gtfs
+)
+se5 <- sqrt(diag(vcovCL(model4, cluster = ~route_id))) #clustered SEs at route level
+summary(model4)
+
+# model 5: logistic regression, bunching as outcome
+model6 <- glm(
+  bunching ~ agency + scheduled_headway + peak + timepoint_rate + headway_cv, #bunching as binary outcome
+  data = gtfs,
+  family = "binomial" #logistic regression
+)
+
+# marginal effects
+marginal_effects <- margins(model6) #compute average marginal effects
+summary(marginal_effects) #summary of AME
+plot(marginal_effects) #plot average marginal effects
+cplot(model6, "scheduled_headway",
+      what = "prediction", #predicted probability
+      main = "Predicted Probability of Bunching by Scheduled Headway",
+      xlab = "Scheduled Headway (minutes)",
+      ylab = "Predicted Probability of Bunching") 
+margins_summary <- summary(marginal_effects) #store margins summary for stargazer
+
+# reorder margins to match covariate order in stargazer
+margins_ordered <- margins_summary[match(
+  c("agencyMTA", "agencyWMATA", "scheduled_headway", "peak", "timepoint_rate", "headway_cv"),
+  margins_summary$factor
+), ] #match() reorders rows to align with covariate order in stargazer
+margins_ordered$p <- ifelse(margins_ordered$p == 0, 0.0001, margins_ordered$p) #replace exact zero p-values so stargazer can assign significance stars
+
+# pad vectors with NA at position 1 to account for intercept in model6
+p_logit    <- c(NA, margins_ordered$p)   #NA placeholder for intercept p-value
+se_logit   <- c(NA, margins_ordered$SE)  #NA placeholder for intercept SE
+coef_logit <- c(NA, margins_ordered$AME) #NA placeholder for intercept coefficient
+
+stargazer(
+  model1, model2, model3, model4, model6, 
+  type = "html", #output as html
+  out = "regression_results.html", #save to file
+  se   = list(se1, se2, se3, se5, se_logit),              #clustered SEs for ols models,  margins SE for logit
+  coef = list(NULL, NULL, NULL, NULL, coef_logit),        #replace logit log odds with AME
+  p    = list(NULL, NULL, NULL, NULL, p_logit),           #replace logit p-values with margins p-values for correct stars
+  title = "Cross-Agency Transit Reliability",             #table title
+  dep.var.caption = "",                                   #removes "dependent variable:" header
+  dep.var.labels = c("Deviation (minutes)", "Bunching (0/1)"), #outcome labels per model group
+  column.labels = c("OLS", "Route FE", "Two-Way FE", "Agency Interaction", "Logit"), #column headers
+  model.numbers = TRUE,                                   #keep model numbering
+  model.names = FALSE,                                    #removes default OLS/logistic labels
+  covariate.labels = c(
+    "MTA", "WMATA",                                       #agency dummies, MBTA is reference
+    "Scheduled Headway",                                  #scheduled headway in minutes
+    "Peak Hours",                                         #peak hours flag
+    "Timepoint Rate",                                     #share of stops designated as timepoints
+    "Headway CV",                                         #coefficient of variation of scheduled headway
+    "MTA x Headway",                                      #interaction: MTA agency and headway
+    "WMATA x Headway"                                     #interaction: WMATA agency and headway
+  ),
+  omit = c("route_id", "day_of_week"),                   #hide route and day dummies, shown in add.lines instead
+  omit.stat = c("f", "ser"),                             #hide f-statistic and residual standard error
+  add.lines = list(
+    c("Route FE", "No", "Yes", "Yes", "No", "No"),       #route fe indicator per model
+    c("Day of Week FE", "No", "No", "Yes", "Yes", "No"), #day of week fe indicator per model
+    c("Clustered SE", "Yes", "Yes", "Yes", "Yes", "No")  #clustered se indicator per model
+  ),
+  notes = c("Standard errors clustered at route level for OLS models", #note on SE clustering
+            "Logit column reports average marginal effects",            #note on logit interpretation
+            "MBTA is the reference agency category")                    #note on reference category
+)
+
+saveRDS(gtfs, "/Users/ahmadalexander/Desktop/python/eco590/final-project-Ahmad-Alexander/data/bus_bunching.rds")
+cat("saved\n")
+```
+
+## Regression Interpretation
+
+The standard OLS model shows that agency as the main driver of deviation. MTA and WMATA buses run 2.75 and 3.0 minutes late relative to MBTA respectively, both significant at 1%. Scheduled headway, peak hours, timepoint rate, and headway CV are all insignificant, suggesting agency-level differences swamp everything else without route controls. Once route fixed effects are added in model 2, we see that headway CV become significant at 1% level showing that A 0.1 increase in headway CV, routes where scheduled gaps between buses become 10% more variable, is associated with 1.12 minutes less positive deviation. In the two-way fixed effects model we see that timepoint rate becomes significant at the 10% level, where a 10 percentage point increase in timepoint rate is associated with 0.42 minutes less deviation. Headway CV changes slightly but is still significant at the 1% level. In model 4, where we add an interaction between agency and headway, it shows that for WMATA, each additional minute of scheduled headway is associated with 0.106 minutes less deviation. This suggests that longer headways actually reduce lateness for WMATA, the opposite of what you'd expect and unlike MTA and MBTA.
+
+The logit model predicts bunching probability; MTA and WMATA increase the probability of bunching by 11.3 and 9.3 percentage points respectively relative to MBTA. This confirms that agency-level operational differences matter in bunching risk beyond what schedule characteristics can explain. Each additional minute of scheduled headway reduces bunching probability by 2.2 percentage points, confirming that higher frequency routes are more prone to bunching. This model also shows that a 10 percentage point increase in timepoint rate reduces bunching probability by 3.25 percentage points, suggesting that agencies can directly reduce bunching risk by holding buses to schedule at more stops. Peak hours reduce bunching probability by 0.8 percentage points, this is counterintuitive where peak hour should increase bunching risk. A 0.1 increase in headway CV reduces bunching probability by 0.31 percentage points, which is consistent with the OLS finding that routes with more variable scheduled headways tend to have more schedule slack built in, which buffers against bunching even as it increases deviation variability.
