@@ -1,0 +1,45 @@
+
+<table style="text-align:center"><caption><strong>Cross-Agency Transit Reliability</strong></caption>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="4">Deviation (minutes)</td><td>Bunching (0/1)</td></tr>
+<tr><td style="text-align:left"></td><td>OLS</td><td>Route FE</td><td>Two-Way FE</td><td>Agency Interaction</td><td>Logit</td></tr>
+<tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">MTA</td><td>2.743<sup>***</sup></td><td></td><td></td><td>3.309<sup>***</sup></td><td>0.113<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(1.022)</td><td></td><td></td><td>(1.219)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">WMATA</td><td>2.995<sup>***</sup></td><td></td><td></td><td>5.143<sup>***</sup></td><td>0.093<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(0.928)</td><td></td><td></td><td>(1.373)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Scheduled Headway</td><td>-0.017</td><td>0.005</td><td>0.019</td><td>0.023</td><td>-0.022<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(0.018)</td><td>(0.013)</td><td>(0.013)</td><td>(0.025)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Peak Hours</td><td>-0.128</td><td>-0.089</td><td>-0.058</td><td>-0.107</td><td>-0.008<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(0.141)</td><td>(0.130)</td><td>(0.131)</td><td>(0.140)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Timepoint Rate</td><td>0.627</td><td>-3.584</td><td>-4.291<sup>*</sup></td><td>-2.506</td><td>-0.321<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(4.742)</td><td>(2.204)</td><td>(2.334)</td><td>(4.503)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Headway CV</td><td>0.174</td><td>-11.261<sup>***</sup></td><td>-11.860<sup>***</sup></td><td>0.411</td><td>-0.029<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(1.563)</td><td>(1.131)</td><td>(1.154)</td><td>(1.624)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">MTA x Headway</td><td></td><td></td><td></td><td>0.007</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(0.035)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">WMATA x Headway</td><td></td><td></td><td></td><td>-0.107<sup>**</sup></td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(0.045)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Constant</td><td>0.427</td><td>8.260<sup>***</sup></td><td>8.294<sup>***</sup></td><td>-0.230</td><td></td></tr>
+<tr><td style="text-align:left"></td><td>(1.355)</td><td>(0.747)</td><td>(0.843)</td><td>(1.487)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Route FE</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td></tr>
+<tr><td style="text-align:left">Day of Week FE</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td style="text-align:left">Clustered SE</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td style="text-align:left">Observations</td><td>1,635,870</td><td>1,635,870</td><td>1,635,870</td><td>1,635,870</td><td>1,635,870</td></tr>
+<tr><td style="text-align:left">R<sup>2</sup></td><td>0.026</td><td>0.055</td><td>0.065</td><td>0.038</td><td></td></tr>
+<tr><td style="text-align:left">Adjusted R<sup>2</sup></td><td>0.026</td><td>0.055</td><td>0.065</td><td>0.038</td><td></td></tr>
+<tr><td style="text-align:left">Log Likelihood</td><td></td><td></td><td></td><td></td><td>-837,464.600</td></tr>
+<tr><td style="text-align:left">Akaike Inf. Crit.</td><td></td><td></td><td></td><td></td><td>1,674,943.000</td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"><em>Note:</em></td><td colspan="5" style="text-align:right"><sup>*</sup>p<0.1; <sup>**</sup>p<0.05; <sup>***</sup>p<0.01</td></tr>
+<tr><td style="text-align:left"></td><td colspan="5" style="text-align:right">Standard errors clustered at route level for OLS models</td></tr>
+<tr><td style="text-align:left"></td><td colspan="5" style="text-align:right">Logit column reports average marginal effects</td></tr>
+<tr><td style="text-align:left"></td><td colspan="5" style="text-align:right">MBTA is the reference agency category</td></tr>
+</table>
